@@ -1,10 +1,22 @@
-import openai
 import base64
 import json
 import pandas as pd
+import sys
+
+try:
+    from openai import OpenAI
+    USE_OPENAI_V1 = True
+except Exception:
+    import openai
+    USE_OPENAI_V1 = False
 
 # 🔑 SET YOUR NEW API KEY
-openai.api_key = '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'
+API_KEY = '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'
+
+if USE_OPENAI_V1:
+    client = OpenAI(api_key=API_KEY)
+else:
+    openai.api_key = API_KEY
 
 
 # -----------------------------
@@ -15,26 +27,35 @@ def encode_image(image_path):
         return base64.b64encode(f.read()).decode("utf-8")
 
 
+def detect_mime_type(image_path):
+    ext = image_path.lower().rsplit(".", 1)[-1] if "." in image_path else ""
+    if ext == "png":
+        return "image/png"
+    if ext in ("jpg", "jpeg"):
+        return "image/jpeg"
+    if ext == "webp":
+        return "image/webp"
+    return "image/jpeg"
+
+
 # -----------------------------
 # STEP 2: OPENAI VISION CALL
 # -----------------------------
 def extract_data_from_image(image_path):
     base64_image = encode_image(image_path)
+    mime_type = detect_mime_type(image_path)
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        temperature=0,
-        messages=[
-            {
-                "role": "system",
-                "content": "You are an expert in reading industrial HMI machine screens and extracting ALL visible data accurately."
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": """
+    messages = [
+        {
+            "role": "system",
+            "content": "You are an expert in reading industrial HMI machine screens and extracting ALL visible data accurately."
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": """
 Analyze this industrial control panel image VERY CAREFULLY.
 
 STRICT RULES:
@@ -72,18 +93,30 @@ DOUBLE CHECK:
 ✔ All numbers captured
 ✔ All buttons captured
 """
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}"
-                        }
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{base64_image}"
                     }
-                ]
-            }
-        ]
-    )
+                }
+            ]
+        }
+    ]
 
+    if USE_OPENAI_V1:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            messages=messages,
+        )
+        return response.choices[0].message.content or ""
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        messages=messages,
+    )
     return response['choices'][0]['message']['content']
 
 
@@ -95,6 +128,19 @@ def clean_json_response(response_text):
         response_text = response_text.replace("```json", "")
         response_text = response_text.replace("```", "")
     return response_text.strip()
+
+
+def extract_json_data(image_path):
+    result = extract_data_from_image(image_path)
+    cleaned = clean_json_response(result)
+    data = json.loads(cleaned)
+
+    if isinstance(data, dict):
+        return [data]
+    if not isinstance(data, list):
+        raise ValueError("Expected JSON array or object from model output")
+
+    return data
 
 
 # -----------------------------
@@ -142,6 +188,9 @@ def main(image_path):
 # RUN SCRIPT
 # -----------------------------
 if __name__ == "__main__":
-    # image_path = r"C:\Users\ekarigar\Downloads\ocr_images\image.jpg"  # 👈 change path
-    image_path = r"C:\Users\ekarigar\Downloads\ocr_images\1.jpeg"  # 👈 change path
+    if len(sys.argv) > 1:
+        image_path = sys.argv[1]
+    else:
+        # Keep fallback path for local manual runs when no argument is passed.
+        image_path = r"C:\Users\ekarigar\Downloads\ocr_images\1.jpeg"
     main(image_path)

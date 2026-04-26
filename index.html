@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image OCR Extractor</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Image OCR Extractor</h1>
+      <p class="subtitle">Upload an image, submit it, and view extracted JSON as key-value table rows.</p>
+
+      <form id="uploadForm" class="card">
+        <label for="imageInput">Select image</label>
+        <input id="imageInput" name="image" type="file" accept="image/*" required />
+
+        <div class="preview-wrap">
+          <img id="preview" alt="Selected preview" hidden />
+        </div>
+
+        <button id="submitBtn" type="submit">Submit</button>
+      </form>
+
+      <section id="resultSection" class="card" hidden>
+        <h2>Extracted Data</h2>
+        <div id="resultMeta" class="meta"></div>
+        <div id="tablesContainer"></div>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
