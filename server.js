@@ -14,6 +14,12 @@ const PORT = process.env.PORT || 8000;
 
 fs.mkdirSync(path.join(__dirname, 'uploads'), { recursive: true });
 
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(self)');
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 app.use(express.static(__dirname));
 
 app.post('/extract', upload.single('image'), async (req, res) => {
