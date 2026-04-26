@@ -9,15 +9,21 @@
   <body>
     <main class="container">
       <h1>Image OCR Extractor</h1>
-      <p class="subtitle">Upload an image, submit it, and view extracted JSON as key-value table rows.</p>
+      <p class="subtitle">Use your camera to capture a photo, submit it, and view extracted JSON as key-value table rows.</p>
 
       <form id="uploadForm" class="card">
-        <label for="imageInput">Select image</label>
-        <input id="imageInput" name="image" type="file" accept="image/*" required />
-
-        <div class="preview-wrap">
-          <img id="preview" alt="Selected preview" hidden />
+        <div class="camera-toolbar">
+          <button id="startCameraBtn" type="button">Start Camera</button>
+          <button id="captureBtn" type="button" disabled>Capture Photo</button>
+          <button id="retakeBtn" type="button" disabled>Retake</button>
         </div>
+
+        <div class="camera-stage">
+          <video id="cameraView" autoplay playsinline muted hidden></video>
+          <img id="preview" alt="Captured preview" hidden />
+        </div>
+
+        <canvas id="captureCanvas" hidden></canvas>
 
         <button id="submitBtn" type="submit">Submit</button>
       </form>

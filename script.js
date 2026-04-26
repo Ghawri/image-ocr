@@ -1,23 +1,99 @@
 const form = document.getElementById("uploadForm");
-const imageInput = document.getElementById("imageInput");
+const startCameraBtn = document.getElementById("startCameraBtn");
+const captureBtn = document.getElementById("captureBtn");
+const retakeBtn = document.getElementById("retakeBtn");
+const cameraView = document.getElementById("cameraView");
 const preview = document.getElementById("preview");
+const captureCanvas = document.getElementById("captureCanvas");
 const submitBtn = document.getElementById("submitBtn");
 const statusText = document.getElementById("status");
 const resultSection = document.getElementById("resultSection");
 const resultMeta = document.getElementById("resultMeta");
 const tablesContainer = document.getElementById("tablesContainer");
 
-imageInput.addEventListener("change", () => {
-  const file = imageInput.files && imageInput.files[0];
-  if (!file) {
+let cameraStream = null;
+let capturedBlob = null;
+
+async function startCamera() {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Camera is not supported in this browser.");
+    }
+
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: false,
+    });
+
+    cameraView.srcObject = cameraStream;
+    cameraView.hidden = false;
     preview.hidden = true;
     preview.removeAttribute("src");
+    capturedBlob = null;
+    captureBtn.disabled = false;
+    retakeBtn.disabled = true;
+    statusText.textContent = "Camera ready. Capture a photo to submit.";
+  } catch (err) {
+    statusText.textContent = `Error: ${err.message}`;
+  }
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((track) => track.stop());
+    cameraStream = null;
+  }
+  cameraView.srcObject = null;
+  cameraView.hidden = true;
+}
+
+function capturePhoto() {
+  if (!cameraStream) {
+    statusText.textContent = "Start the camera first.";
     return;
   }
 
-  preview.src = URL.createObjectURL(file);
-  preview.hidden = false;
-});
+  const videoWidth = cameraView.videoWidth;
+  const videoHeight = cameraView.videoHeight;
+  if (!videoWidth || !videoHeight) {
+    statusText.textContent = "Camera is still starting. Please try again in a second.";
+    return;
+  }
+
+  captureCanvas.width = videoWidth;
+  captureCanvas.height = videoHeight;
+
+  const context = captureCanvas.getContext("2d");
+  context.drawImage(cameraView, 0, 0, videoWidth, videoHeight);
+
+  captureCanvas.toBlob((blob) => {
+    if (!blob) {
+      statusText.textContent = "Unable to capture image.";
+      return;
+    }
+
+    capturedBlob = blob;
+    preview.src = URL.createObjectURL(blob);
+    preview.hidden = false;
+    stopCamera();
+    captureBtn.disabled = true;
+    retakeBtn.disabled = false;
+    statusText.textContent = "Photo captured. Submit it to process the image.";
+  }, "image/jpeg", 0.95);
+}
+
+function resetCapture() {
+  capturedBlob = null;
+  preview.hidden = true;
+  preview.removeAttribute("src");
+  retakeBtn.disabled = true;
+  captureBtn.disabled = false;
+  startCamera();
+}
+
+startCameraBtn.addEventListener("click", startCamera);
+captureBtn.addEventListener("click", capturePhoto);
+retakeBtn.addEventListener("click", resetCapture);
 
 function buildRowTable(obj, index) {
   const table = document.createElement("table");
@@ -49,14 +125,13 @@ function buildRowTable(obj, index) {
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const file = imageInput.files && imageInput.files[0];
-  if (!file) {
-    statusText.textContent = "Please select an image first.";
+  if (!capturedBlob) {
+    statusText.textContent = "Please capture a photo from the camera first.";
     return;
   }
 
   const formData = new FormData();
-  formData.append("image", file);
+  formData.append("image", capturedBlob, "camera-capture.jpg");
 
   submitBtn.disabled = true;
   statusText.textContent = "Processing image...";
@@ -88,4 +163,8 @@ form.addEventListener("submit", async (event) => {
   } finally {
     submitBtn.disabled = false;
   }
+});
+
+window.addEventListener("beforeunload", () => {
+  stopCamera();
 });
